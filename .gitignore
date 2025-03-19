@@ -1,0 +1,39 @@
+# Environment variables
+/.env
+/myenv
+
+# Node.js dependencies
+/node_modules
+/npm-debug.log
+/yarn-error.log
+
+# Python dependencies
+/__pycache__/
+/*.py[cod]
+/*.so
+/venv/
+/env/
+/env.bak/
+/*.egg-info/
+
+# Logs
+/logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE specific files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Build files
+/dist
+/build
+/out

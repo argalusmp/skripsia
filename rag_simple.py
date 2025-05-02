@@ -6,10 +6,20 @@ from langchain import hub
 
 def run_simple_rag(vector_store):
 
-    llm = ChatGroq(model="llama3-8b-8192")
+    llm = ChatGroq(model="llama-3.3-70b-versatile")
 
     # Define prompt for question-answering
-    prompt = hub.pull("rlm/rag-prompt")
+    prompt = """
+    You are an AI assistant. Answer the following question based on the provided context.
+    If you don't know the answer, say that you don't know. answer like a student friend.
+    
+    Question: {question}
+
+    Context:
+    {context}
+
+    Answer:
+    """
 
     # Define state for application
     class State(TypedDict):
@@ -24,7 +34,7 @@ def run_simple_rag(vector_store):
 
     def generate(state: State):
         docs_content = "\n\n".join(doc.page_content for doc in state["context"])
-        messages = prompt.invoke({"question": state["question"], "context": docs_content})
+        messages = prompt.format(question=state["question"], context=docs_content)
         response = llm.invoke(messages)
         return {"answer": response.content}
 
@@ -33,5 +43,6 @@ def run_simple_rag(vector_store):
     graph_builder.add_edge(START, "retrieve")
     graph = graph_builder.compile()
 
-    response = graph.invoke({"question": "apa aturan seminar proposal?"})
+    response = graph.invoke({"question": "berikan saya Contoh lembar pengesahan"})
     print(response["answer"])
+

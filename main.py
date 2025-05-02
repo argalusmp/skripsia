@@ -1,19 +1,26 @@
+
+import logging
 from config import setup_environment
-from document_loader import load_documents
-from vector_store import initialize_vector_store
+from vector_store import initialize_vector_store, process_and_store_pdf
 from rag_simple import run_simple_rag
-from rag_multi import run_multi_rag
 
 def main():
-    setup_environment()
-    docs = load_documents()
-    vector_store = initialize_vector_store(docs)
-    
-    # Run simple RAG process
-    run_simple_rag(vector_store)
-    
-    # Run multi-step RAG process
-    run_multi_rag(vector_store)
+    try:
+        setup_environment()
+        vector_store = initialize_vector_store()  # Pass an empty list if no initial docs
+
+        # Process uploaded PDF and store in vector database
+        pdf_path = "Pedoman_Skripsi.pdf"
+        # process_and_store_pdf(pdf_path, vector_store)
+
+        # Run simple RAG process
+        run_simple_rag(vector_store)
+
+    except Exception as e:
+        logging.error(f"An error occurred in the main workflow: {e}")
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.ERROR, format="%(asctime)s - %(levelname)s - %(message)s")
     main()
+
+

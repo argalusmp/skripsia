@@ -5,8 +5,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def setup_environment():
-    os.getenv("LANGCHAIN_TRACING_V2", "true")
-    os.getenv("LANGSMITH_API_KEY") 
-    os.getenv("OPENAI_API_KEY")
-    os.getenv("GROQ_API_KEY")  
-    os.getenv("PINECONE_API_KEY")
+    return {
+        "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY"),
+        "GROQ_API_KEY": os.getenv("GROQ_API_KEY"),
+        "PINECONE_API_KEY": os.getenv("PINECONE_API_KEY"),
+        "MISTRAL_API_KEY": os.getenv("MISTRAL_API_KEY"),
+    }

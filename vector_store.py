@@ -1,11 +1,18 @@
 import os
 import logging
-from config import setup_environment
+from app.config import setup_environment
 from langchain_openai import OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from pinecone import Pinecone
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from mistralai import Mistral
+import hashlib
+
+
+def generate_content_hash(text):
+    """Generate SHA-256 hash for text content"""
+    return hashlib.sha256(text.encode()).hexdigest()
+
 
 def initialize_vector_store():
     embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
@@ -89,19 +96,48 @@ def process_and_store_pdf(file_path, vector_store):
         chunks = text_splitter.split_text(all_text)
         logging.info(f"Created {len(chunks)} text chunks")
         
-        # Prepare metadata for each chunk
+        # Generate content hashes
+        hash_ids = [generate_content_hash(chunk) for chunk in chunks]
         file_name = os.path.basename(file_path)
-        metadatas = [{"source": file_name, "chunk": i} for i in range(len(chunks))]
         
-        # Store chunks in vector store
-        logging.info("Adding documents to vector store...")
-        vector_store.add_texts(
-            texts=chunks,
-            metadatas=metadatas,
-            ids=[f"{file_name}_chunk_{i}" for i in range(len(chunks))]
-        )
+        # Check existing IDs in Pinecone
+        existing_ids = []
+        try:
+            # Fetch in batches untuk menghindari limit API
+            batch_size = 100
+            for i in range(0, len(hash_ids), batch_size):
+                batch_ids = hash_ids[i:i+batch_size]
+                fetch_response = vector_store.index.fetch(ids=batch_ids)
+                existing_ids += list(fetch_response.get("vectors", {}).keys())
+        except Exception as e:
+            logging.error(f"Error checking existing IDs: {e}")
+            return False
         
-        logging.info(f"Successfully processed and stored document: {file_name}")
+          # Filter new chunks
+        new_texts = []
+        new_metadatas = []
+        new_ids = []
+        for idx, (chunk, hash_id) in enumerate(zip(chunks, hash_ids)):
+            if hash_id not in existing_ids:
+                new_texts.append(chunk)
+                new_metadatas.append({
+                    "source": file_name,
+                    "chunk": idx,
+                    "content_hash": hash_id
+                })
+                new_ids.append(hash_id)
+                
+        # Store only new chunks
+        if new_texts:
+            logging.info(f"Adding {len(new_texts)} new chunks out of {len(chunks)} total")
+            vector_store.add_texts(
+                texts=new_texts,
+                metadatas=new_metadatas,
+                ids=new_ids
+            )
+        else:
+            logging.info("No new content to store")
+
         return True
 
     except FileNotFoundError as e:

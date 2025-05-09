@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
@@ -28,12 +29,12 @@ async def upload_knowledge_source(
         file_type = 'document'
     elif file_extension in ['.jpg', '.jpeg', '.png']:
         file_type = 'image'
-    elif file_extension in ['.mp3', '.wav']:
+    elif file_extension in ['.mp3', '.wav', 'm4a']:
         file_type = 'audio'
     else:
         raise HTTPException(
             status_code=400,
-            detail="Unsupported file type. Supported types: PDF, DOCX, JPG, PNG, MP3, WAV"
+            detail="Unsupported file type. Supported types: PDF, DOCX, JPG, PNG, MP3, WAV, M4A."
         )
     
     # Create directory if it doesn't exist
@@ -90,3 +91,33 @@ async def get_knowledge_source(
         raise HTTPException(status_code=404, detail="Knowledge source not found")
     
     return knowledge
+
+from app.vector_store.pinecone_client import get_vector_store
+
+@router.delete("/{knowledge_id}", status_code=200)
+async def delete_knowledge_source(
+    knowledge_id: int,
+    current_user: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    # Query the knowledge source
+    knowledge = db.query(KnowledgeSource).filter(KnowledgeSource.id == knowledge_id).first()
+    if not knowledge:
+        raise HTTPException(status_code=404, detail="Knowledge source not found")
+    
+    # Delete the file if it exists
+    if os.path.exists(knowledge.file_path):
+        os.remove(knowledge.file_path)
+    
+    # Delete related vectors from Pinecone
+    vector_store = get_vector_store()
+    try:
+        vector_store._index.delete(filter={"source_id": knowledge_id})
+    except Exception as e:
+        logging.error(f"Failed to delete vectors from Pinecone: {e}")
+    
+    # Delete the knowledge source from the database
+    db.delete(knowledge)
+    db.commit()
+    
+    return {"detail": "Knowledge source deleted successfully"}

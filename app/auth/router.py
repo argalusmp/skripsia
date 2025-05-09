@@ -54,13 +54,13 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
             detail="Email already registered"
         )
     
-    # Create new user
+    # Create new user with default role if not provided
     hashed_password = get_password_hash(user_data.password)
     db_user = User(
         username=user_data.username,
         email=user_data.email,
         password_hash=hashed_password,
-        role=user_data.role
+        role=user_data.role or "student"  # Default to "student" if not provided
     )
     db.add(db_user)
     db.commit()

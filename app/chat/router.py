@@ -102,7 +102,7 @@ async def get_conversation(
     
     return conversation
 
-@router.delete("/conversations/{conversation_id}", status_code=204)
+@router.delete("/conversations/{conversation_id}", status_code=200)
 async def delete_conversation(
     conversation_id: int,
     current_user: User = Depends(get_current_user),
@@ -123,4 +123,4 @@ async def delete_conversation(
     db.delete(conversation)
     db.commit()
     
-    return None
+    return {"detail": "Conversation deleted successfully"}

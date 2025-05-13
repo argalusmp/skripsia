@@ -7,6 +7,7 @@ from app.auth.models import TokenData
 from app.config import settings
 from app.database import get_db
 from app.users.models import User
+from fastapi import Request, HTTPException
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
@@ -36,3 +37,8 @@ async def get_current_admin(current_user: User = Depends(get_current_user)):
             detail="Not enough permissions"
         )
     return current_user
+
+async def validate_admin_role(request: Request):
+    user_role = request.headers.get("X-User-Role")
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Access forbidden")

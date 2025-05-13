@@ -1,6 +1,7 @@
 from groq import Groq
 import os
 import logging
+import base64
 from mistralai import Mistral
 from app.config import settings
 
@@ -72,88 +73,87 @@ def extract_text_from_document(file_path: str) -> str:
         raise
 
 
-def extract_text_from_image(file_path: str) -> str:
-    """Extract text from image files using Mistral OCR"""
+def encode_image_to_base64(image_path: str) -> str:
+    """Encode the image to Base64 format."""
     try:
-        # Process similar to document but with appropriate settings for images
+        with open(image_path, "rb") as image_file:
+            return base64.b64encode(image_file.read()).decode("utf-8")
+    except FileNotFoundError:
+        logger.error(f"Error: The file {image_path} was not found.")
+        raise
+    except Exception as e:
+        logger.error(f"Error encoding image to Base64: {e}")
+        raise
+
+def extract_text_from_image(file_path: str) -> str:
+    """Extract text from image files using Mistral OCR."""
+    try:
+        # Check if file exists
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
 
+        # Encode image to Base64
+        base64_image = encode_image_to_base64(file_path)
+
+        # Initialize Mistral client
         client = Mistral(api_key=settings.MISTRAL_API_KEY)
 
         logger.info(f"Uploading image to Mistral OCR: {file_path}")
 
-        # Upload image to Mistral OCR
-        uploaded_file = client.files.upload(
-            file={
-                "file_name": os.path.basename(file_path),
-                "content": open(file_path, "rb"),
-            },
-            purpose="ocr"
-        )
-
-        # Retrieve the document URL
-        signed_url_obj = client.files.get_signed_url(file_id=uploaded_file.id)
-        signed_url = signed_url_obj.url
-
-        # Process OCR on the image
+        # Process OCR using Base64 encoded image
         ocr_response = client.ocr.process(
             model="mistral-ocr-latest",
-            document={"type": "document_url", "document_url": signed_url}
+            document={
+                "type": "image_url",
+                "image_url": f"data:image/jpeg;base64,{base64_image}"
+            }
         )
 
-        # Extract text from the OCR response (single page for images)
+        # Extract text from the OCR response
         extracted_text = ocr_response.pages[0].markdown if ocr_response.pages else ""
 
         logger.info(f"Extracted {len(extracted_text)} characters from image")
         return extracted_text
 
     except Exception as e:
-        logger.error(f"Error extracting text from image: {str(e)}")
+        logger.error(f"Error extracting text from image: {e}")
         raise
 
-
 def extract_text_from_audio(file_path: str) -> str:
-    """Extract text from audio files using OpenAI Whisper"""
+    """Extract text from audio files using Groq API"""
     try:
-        # For this implementation, use OpenAI's Whisper model for audio transcription
-        # or integrate with a different audio transcription service if preferred
-
-        # Here is a placeholder implementation that would use OpenAI's API
-        # import openai
-        # from openai import OpenAI
-
-        # client = OpenAI(api_key=settings.OPENAI_API_KEY)
-
-        # logger.info(f"Transcribing audio file: {file_path}")
-
-        # with open(file_path, "rb") as audio_file:
-        #     transcription = client.audio.transcriptions.create(
-        #         model="whisper-1",
-        #         file=audio_file
-        #     )
-
-        # logger.info(
-        #     f"Transcribed {len(transcription.text)} characters from audio")
-        # return transcription.text
-    
-    
-        import os 
+        import os
+        import json
         from groq import Groq
 
+        # Initialize Groq client
         client = Groq()
+
         logger.info(f"Transcribing audio file: {file_path}")
-        with open(file_path, "rb") as file:
+
+        # Open the audio file
+        with open(file_path, "rb") as audio_file:
+            # Create a transcription of the audio file
             transcription = client.audio.transcriptions.create(
-                file=(os.path.basename(file_path), file.read()),  # Use os.path.basename
-                model="whisper-large-v3",  # Specify the model.
-                language="id",  # Specify the language.
-                response_format="text", # Change to text.
+                file=audio_file,  # Required audio file
+                model="whisper-large-v3-turbo",  # Required model to use for transcription
+                prompt="Specify context or spelling",  
+                response_format="verbose_json", 
+                timestamp_granularities=["word", "segment"],  
+                language="id",  
+                temperature=0.0  
             )
-            
-        logger.info(
-            f"Transcribed {len(transcription.text)} characters from audio")
-        return transcription.text
+
+        # Log the full transcription object
+        logger.info(f"Full transcription response: {json.dumps(transcription, indent=2, default=str)}")
+
+        # Extract the transcription text
+        transcription_text = transcription.text
+        if not transcription_text:
+            raise ValueError("No transcription text found in the response.")
+
+        logger.info(f"Transcribed {len(transcription_text)} characters from audio")
+        return transcription_text
 
     except Exception as e:
         logger.error(f"Error extracting text from audio: {str(e)}")

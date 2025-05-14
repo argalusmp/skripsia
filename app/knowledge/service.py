@@ -12,21 +12,37 @@ from datetime import datetime
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 def process_knowledge_source(source_id: int, file_path: str, file_type: str):
     """Process knowledge source file and store in vector database"""
+    temp_file = None
     try:
         logger.info(
             f"Processing knowledge source {source_id} of type {file_type}")
 
+        # Check if we need to download from Spaces
+        local_file_path = file_path
+        if settings.USE_SPACES and not file_path.startswith(settings.UPLOAD_DIR):
+            # For Spaces, file_path might be a URL or object name
+            # Create a temporary file for processing
+            file_name = os.path.basename(file_path)
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_name)
+            temp_file.close()
+            
+            # Download file from Spaces
+            spaces = SpacesStorage()
+            if spaces.download_file(file_path, temp_file.name):
+                local_file_path = temp_file.name
+            else:
+                raise ValueError(f"Failed to download file from Spaces: {file_path}")
+
         # Extract text based on file type
         text = ""
         if file_type == "document":
-            text = extract_text_from_document(file_path)
+            text = extract_text_from_document(local_file_path)
         elif file_type == "image":
-            text = extract_text_from_image(file_path)
+            text = extract_text_from_image(local_file_path)
         elif file_type == "audio":
-            text = extract_text_from_audio(file_path)
+            text = extract_text_from_audio(local_file_path)
 
         if not text:
             raise ValueError(f"No text extracted from file: {file_path}")
@@ -77,11 +93,29 @@ def process_knowledge_source(source_id: int, file_path: str, file_type: str):
                 knowledge_source.status = "failed"
                 db.commit()
                 logger.info(f"Knowledge source {source_id} marked as failed")
+    
+    finally:
+        # Clean up temporary file if created
+        if temp_file and os.path.exists(temp_file.name):
+            os.unlink(temp_file.name)
 
 
 def extract_file_metadata(file_path):
     """Extract metadata from file like creation date, size, etc."""
     try:
+        # For Spaces files, we need a different approach
+        if settings.USE_SPACES and not file_path.startswith(settings.UPLOAD_DIR):
+            file_name = os.path.basename(file_path)
+            file_extension = os.path.splitext(file_name)[1].lower()
+            
+            return {
+                "file_name": file_name,
+                "file_size": 0,  # Size not available without downloading
+                "file_extension": file_extension,
+                "created_at": datetime.now()
+            }
+        
+        # For local files
         file_stats = os.stat(file_path)
         file_name = os.path.basename(file_path)
         file_size = file_stats.st_size

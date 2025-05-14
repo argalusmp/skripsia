@@ -28,6 +28,14 @@ class Settings(BaseSettings):
     # File storage
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "uploads")
 
+    # Add these to your Settings class
+    DO_SPACE_REGION: str = os.getenv("DO_SPACE_REGION")
+    DO_SPACE_ENDPOINT: str = os.getenv("DO_SPACE_ENDPOINT")
+    DO_SPACE_KEY: str = os.getenv("DO_SPACE_KEY")
+    DO_SPACE_SECRET: str = os.getenv("DO_SPACE_SECRET")
+    DO_SPACE_NAME: str = os.getenv("DO_SPACE_NAME")
+    USE_SPACES: bool = os.getenv("USE_SPACES", "false").lower() == "true"
+
 # Create a settings instance
 settings = Settings()
 

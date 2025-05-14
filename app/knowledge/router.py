@@ -2,7 +2,7 @@ import logging
 import os
 import shutil
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks, Response
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from typing import List
 from app.vector_store.pinecone_client import get_vector_store
@@ -12,6 +12,7 @@ from app.knowledge.models import KnowledgeSource, KnowledgeSourceResponse, Knowl
 from app.knowledge.service import process_knowledge_source
 from app.users.models import User
 from app.config import settings
+from app.storage.spaces_storage import SpacesStorage  # Import SpacesStorage
 import mimetypes
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -58,15 +59,15 @@ async def upload_knowledge_source(
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
     # Save file
-    file_path = os.path.join(settings.UPLOAD_DIR, f"{title}{file_extension}")
+    local_file_path = os.path.join(settings.UPLOAD_DIR, f"{title}{file_extension}")
 
-    with open(file_path, "wb") as buffer:
+    with open(local_file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
     # Create database entry
     db_knowledge = KnowledgeSource(
         title=title,
-        file_path=file_path,
+        file_path=local_file_path,
         file_type=file_type,
         uploaded_by=current_user.id
     )
@@ -75,11 +76,30 @@ async def upload_knowledge_source(
     db.commit()
     db.refresh(db_knowledge)
 
+    # If USE_SPACES is enabled, upload to DigitalOcean Spaces
+    file_url = local_file_path
+    if settings.USE_SPACES:
+        try:
+            spaces = SpacesStorage()
+            object_name = f"knowledge/{db_knowledge.id}/{title}{file_extension}"
+            file_url = spaces.upload_file(local_file_path, object_name)
+            
+            # Update database with the object name rather than local path
+            db_knowledge.file_path = object_name
+            db.commit()
+            db.refresh(db_knowledge)
+            
+            # We can now remove the local file
+            os.remove(local_file_path)
+        except Exception as e:
+            logging.error(f"Error uploading to Spaces: {e}")
+            # If Spaces upload fails, continue with local file
+
     # Process knowledge source in background
     background_tasks.add_task(
         process_knowledge_source,
         db_knowledge.id,
-        file_path,
+        local_file_path if not settings.USE_SPACES else file_url,
         file_type
     )
 
@@ -90,7 +110,7 @@ async def upload_knowledge_source(
         file_type=db_knowledge.file_type,
         status=db_knowledge.status,
         created_at=db_knowledge.created_at,
-        file_name=os.path.basename(db_knowledge.file_path)
+        file_name=title + file_extension
     )
 
 
@@ -148,8 +168,15 @@ async def delete_knowledge_source(
         raise HTTPException(
             status_code=404, detail="Knowledge source not found")
 
-    # Delete the file if it exists
-    if os.path.exists(knowledge.file_path):
+    # If using Spaces, delete from DigitalOcean Spaces
+    if settings.USE_SPACES and not knowledge.file_path.startswith(settings.UPLOAD_DIR):
+        try:
+            spaces = SpacesStorage()
+            spaces.delete_file(knowledge.file_path)
+        except Exception as e:
+            logging.error(f"Failed to delete file from Spaces: {e}")
+    # Else delete local file if it exists
+    elif os.path.exists(knowledge.file_path):
         os.remove(knowledge.file_path)
 
     # Delete related vectors from Pinecone
@@ -182,7 +209,20 @@ async def get_knowledge_file(
         raise HTTPException(
             status_code=404, detail="Knowledge source not found")
 
-    # Check if file exists
+    # If using Spaces, generate a presigned URL and redirect to it
+    if settings.USE_SPACES and not knowledge.file_path.startswith(settings.UPLOAD_DIR):
+        try:
+            spaces = SpacesStorage()
+            presigned_url = spaces.get_presigned_url(knowledge.file_path)
+            if presigned_url:
+                return RedirectResponse(url=presigned_url)
+            else:
+                raise HTTPException(status_code=500, detail="Failed to generate file access URL")
+        except Exception as e:
+            logging.error(f"Error accessing file from Spaces: {e}")
+            raise HTTPException(status_code=500, detail=f"Error accessing file: {str(e)}")
+    
+    # Fallback to local file access if not using Spaces or if path is local
     if not os.path.exists(knowledge.file_path):
         raise HTTPException(status_code=404, detail="File not found on server")
 
@@ -215,14 +255,24 @@ async def preview_knowledge_source(
     file_type = knowledge.file_type
     file_name = os.path.basename(file_path)
 
+    # For Spaces storage, we'll use a presigned URL
+    file_url = f"/knowledge/file/{knowledge.id}"
+    if settings.USE_SPACES and not file_path.startswith(settings.UPLOAD_DIR):
+        try:
+            spaces = SpacesStorage()
+            presigned_url = spaces.get_presigned_url(file_path)
+            if presigned_url:
+                file_url = presigned_url
+        except Exception as e:
+            logging.error(f"Error generating preview URL: {e}")
+
     # Generate signed URL or token for frontend to access
-    # This is a simple implementation - could be enhanced with temporary tokens
     preview_data = {
         "id": knowledge.id,
         "title": knowledge.title,
         "file_name": file_name,
         "file_type": file_type,
-        "file_url": f"/knowledge/file/{knowledge.id}",
+        "file_url": file_url,
         "created_at": knowledge.created_at
     }
 

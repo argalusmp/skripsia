@@ -1,3 +1,5 @@
+boto3==1.38.15
+botocore==1.38.15
 fastapi==0.115.12
 groq==0.24.0
 langchain_core==0.3.59

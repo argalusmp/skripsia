@@ -55,7 +55,7 @@ This project is a backend application for a chatbot system designed to assist us
 
 ### 1. Clone the Repository
 ```powershell
-git clone <repository-url>
+git clone https://github.com/argalusmp/skripsia.git
 cd <repository-folder>
 ```
 

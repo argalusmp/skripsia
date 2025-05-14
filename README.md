@@ -54,16 +54,16 @@ This project is a backend application for a chatbot system designed to assist us
 ## Setup Instructions
 
 ### 1. Clone the Repository
-```powershell
+```bash
 git clone https://github.com/argalusmp/skripsia.git
 cd <repository-folder>
 ```
 
 ### 2. Install Dependencies
 Create a virtual environment and install the required Python packages:
-```powershell
+```bash
 python -m venv venv
-.\venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -82,13 +82,13 @@ UPLOAD_DIR=uploads
 
 ### 4. Run Database Migrations
 Initialize the database schema using Alembic:
-```powershell
+```bash
 alembic upgrade head
 ```
 
 ### 5. Start the Application
 Run the FastAPI application:
-```powershell
+```bash
 uvicorn app.main:app --reload
 ```
 
@@ -98,6 +98,142 @@ Open your browser and navigate to:
 http://localhost:8000/docs
 ```
 This will display the interactive API documentation.
+
+---
+
+## Deployment on DigitalOcean
+
+### Prerequisites
+1. A DigitalOcean account with sufficient credits.
+2. SSH key added to your DigitalOcean account for secure server access.
+3. Basic knowledge of Linux commands.
+
+### Steps to Deploy
+
+#### 1. Create a Droplet
+- Log in to your DigitalOcean account.
+- Create a new Droplet with the following specifications:
+  - **Image**: Ubuntu 22.04 LTS
+  - **Plan**: Basic (at least 2GB RAM, 1 CPU)
+  - **Region**: Closest to your target audience
+  - **SSH Key**: Add your SSH key for secure access
+
+#### 2. Connect to the Droplet
+Use SSH to connect to your Droplet:
+```bash
+ssh root@<your-droplet-ip>
+```
+
+#### 3. Update the System
+Update the system packages:
+```bash
+apt update && apt upgrade -y
+```
+
+#### 4. Install Dependencies
+Install required packages:
+```bash
+apt install -y python3-pip python3-venv nginx supervisor git
+```
+
+#### 5. Clone the Repository
+Navigate to the `/var/www` directory and clone your repository:
+```bash
+mkdir -p /var/www
+cd /var/www
+git clone https://github.com/argalusmp/skripsia.git
+cd skripsia
+```
+
+#### 6. Set Up Python Environment
+Create a virtual environment and install dependencies:
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+#### 7. Configure Environment Variables
+Create a `.env` file in the project directory with your production environment variables:
+```bash
+cat > .env << 'EOF'
+DATABASE_URL=postgresql://<user>:<password>@<host>/<database>
+JWT_SECRET_KEY=your-secret-key
+OPENAI_API_KEY=your-openai-api-key
+GROQ_API_KEY=your-groq-api-key
+MISTRAL_API_KEY=your-mistral-api-key
+PINECONE_API_KEY=your-pinecone-api-key
+PINECONE_INDEX_NAME=ragv2
+UPLOAD_DIR=uploads
+DO_SPACE_REGION=sgp1
+DO_SPACE_ENDPOINT=https://skripsia-uploads.sgp1.digitaloceanspaces.com
+DO_SPACE_KEY=your-space-key
+DO_SPACE_SECRET=your-space-secret
+DO_SPACE_NAME=skripsia-uploads
+USE_SPACES=true
+EOF
+```
+
+#### 8. Run Database Migrations
+Apply database migrations:
+```bash
+source venv/bin/activate
+alembic upgrade head
+```
+
+#### 9. Configure Supervisor
+Create a Supervisor configuration file to manage the application:
+```bash
+cat > /etc/supervisor/conf.d/skripsia.conf << 'EOF'
+[program:skripsia]
+command=/var/www/skripsia/venv/bin/gunicorn -w 4 -k uvicorn.workers.UvicornWorker -b 127.0.0.1:8000 app.main:app
+directory=/var/www/skripsia
+user=www-data
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/skripsia/err.log
+stdout_logfile=/var/log/skripsia/out.log
+EOF
+```
+Reload Supervisor:
+```bash
+supervisorctl reread
+supervisorctl update
+```
+
+#### 10. Configure Nginx
+Create an Nginx configuration file:
+```bash
+cat > /etc/nginx/sites-available/skripsia << 'EOF'
+server {
+    listen 80;
+    server_name _;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    client_max_body_size 50M;
+}
+EOF
+```
+Enable the site and restart Nginx:
+```bash
+ln -s /etc/nginx/sites-available/skripsia /etc/nginx/sites-enabled/
+nginx -t
+systemctl restart nginx
+```
+
+#### 11. Test the Deployment
+Access your application using the Droplet's public IP:
+```
+http://<your-droplet-ip>
+```
 
 ---
 

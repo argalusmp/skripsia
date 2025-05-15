@@ -78,6 +78,7 @@ async def upload_knowledge_source(
 
     # If USE_SPACES is enabled, upload to DigitalOcean Spaces
     file_url = local_file_path
+    object_name = None
     if settings.USE_SPACES:
         try:
             spaces = SpacesStorage()
@@ -99,7 +100,7 @@ async def upload_knowledge_source(
     background_tasks.add_task(
         process_knowledge_source,
         db_knowledge.id,
-        local_file_path if not settings.USE_SPACES else file_url,
+        db_knowledge.file_path,  # Gunakan path yang tersimpan di database
         file_type
     )
 

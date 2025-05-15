@@ -28,7 +28,7 @@ class SpacesStorage:
                 Params={'Bucket': self.bucket, 'Key': object_name},
                 ExpiresIn=3600
             )
-            return url
+            return object_name
         except Exception as e:
             print(f"Error uploading file: {e}")
             return None

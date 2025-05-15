@@ -16,6 +16,8 @@
 /env.bak/
 /*.egg-info/
 
+app/*/__pycache__
+
 # Logs
 /logs
 *.log

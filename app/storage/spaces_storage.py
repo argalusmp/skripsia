@@ -3,6 +3,7 @@ import os
 from botocore.client import Config
 from app.config import settings
 
+
 class SpacesStorage:
     def __init__(self):
         self.s3 = boto3.client(
@@ -19,9 +20,13 @@ class SpacesStorage:
         """Upload a file to a Space"""
         if object_name is None:
             object_name = os.path.basename(file_path)
-        
+
         try:
-            self.s3.upload_file(file_path, self.bucket, object_name)
+            self.s3.upload_file(
+                file_path,
+                self.bucket,
+                object_name,
+                ExtraArgs={'ACL': 'public-read'})
             # Generate a URL that will be valid for 1 hour
             url = self.s3.generate_presigned_url(
                 'get_object',

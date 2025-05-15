@@ -79,29 +79,32 @@ async def upload_knowledge_source(
     db.refresh(db_knowledge)
 
     # If USE_SPACES is enabled, upload to DigitalOcean Spaces
-    # If USE_SPACES is enabled, upload to DigitalOcean Spaces
     file_url = local_file_path
-    if settings.USE_SPACES:
+    if True:
         try:
             spaces = SpacesStorage()
             # PERBAIKAN: Hapus "skripsia-uploads/" dari object_name karena sudah ada di bucket name
             object_name = f"knowledge/{db_knowledge.id}/{title}{file_extension}"
-            
+
             # Logging akan membantu debugging
             logging.info(f"Uploading to Spaces with object_name: {object_name}")
-            
+
             # Upload file
             space_object_name = spaces.upload_file(local_file_path, object_name)
-            
+
             if space_object_name:
-                # Update database with the object path
+                # Generate public URL for the file
+                public_url = spaces.get_public_url(space_object_name)
+
+                # Update database with the object path and public URL
                 db_knowledge.file_path = space_object_name
+                db_knowledge.public_url = public_url
                 db.commit()
                 db.refresh(db_knowledge)
-                
+
                 # We can now remove the local file
                 os.remove(local_file_path)
-                logging.info(f"File uploaded to Spaces and local file removed. Path in DB: {db_knowledge.file_path}")
+                logging.info(f"File uploaded to Spaces and local file removed. Path in DB: {db_knowledge.file_path}, Public URL: {db_knowledge.public_url}")
             else:
                 logging.error("Failed to upload file to Spaces")
         except Exception as e:

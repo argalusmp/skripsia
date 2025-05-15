@@ -212,7 +212,8 @@ async def get_knowledge_file(
     request: Request,
     knowledge_id: int,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = Depends()  # Add this parameter
 ):
     # Query the knowledge source
     knowledge = db.query(KnowledgeSource).filter(
@@ -231,32 +232,26 @@ async def get_knowledge_file(
             
             # Download from Spaces
             spaces = SpacesStorage()
+            logging.info(f"Attempting to download file from Spaces: {knowledge.file_path} to {temp_file_path}")
             if spaces.download_file(knowledge.file_path, temp_file_path):
                 # Get file MIME type
                 mime_type, _ = mimetypes.guess_type(knowledge.file_path)
                 if not mime_type:
                     mime_type = "application/octet-stream"
                 
-                # Definisikan cleanup function
-                def cleanup_temp_file():
-                    try:
-                        if os.path.exists(temp_file_path):
-                            os.unlink(temp_file_path)
-                            logging.info(f"Temporary file {temp_file_path} has been deleted")
-                    except Exception as e:
-                        logging.error(f"Error deleting temp file: {e}")
+                # Add cleanup task to background tasks
+                background_tasks.add_task(lambda: os.unlink(temp_file_path) if os.path.exists(temp_file_path) else None)
                 
                 # Serve file directly through the backend
                 return FileResponse(
                     path=temp_file_path,
                     filename=os.path.basename(knowledge.file_path),
-                    media_type=mime_type,
-                    background=BackgroundTasks(cleanup_temp_file)
+                    media_type=mime_type
                 )
             else:
                 raise HTTPException(status_code=500, detail="Failed to download file from storage")
         except Exception as e:
-            logging.error(f"Error accessing file from Spaces: {e}")
+            logging.error(f"Error accessing file from Spaces: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Error accessing file: {str(e)}")
     
     # Fallback to local file access

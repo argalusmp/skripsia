@@ -1,7 +1,8 @@
 import logging
 import os
 import shutil
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks, Response
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Response
+from fastapi.background import BackgroundTasks
 from fastapi.responses import FileResponse, StreamingResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from typing import List
@@ -106,7 +107,7 @@ async def upload_knowledge_source(
         except Exception as e:
             logging.error(f"Error uploading to Spaces: {e}")
             # If Spaces upload fails, continue with local file
-            
+
     # Process knowledge source in background
     background_tasks.add_task(
         process_knowledge_source,
@@ -236,12 +237,21 @@ async def get_knowledge_file(
                 if not mime_type:
                     mime_type = "application/octet-stream"
                 
+                # Definisikan cleanup function
+                def cleanup_temp_file():
+                    try:
+                        if os.path.exists(temp_file_path):
+                            os.unlink(temp_file_path)
+                            logging.info(f"Temporary file {temp_file_path} has been deleted")
+                    except Exception as e:
+                        logging.error(f"Error deleting temp file: {e}")
+                
                 # Serve file directly through the backend
                 return FileResponse(
                     path=temp_file_path,
                     filename=os.path.basename(knowledge.file_path),
                     media_type=mime_type,
-                    background=BackgroundTasks(lambda: os.unlink(temp_file_path) if os.path.exists(temp_file_path) else None)
+                    background=BackgroundTasks(cleanup_temp_file)
                 )
             else:
                 raise HTTPException(status_code=500, detail="Failed to download file from storage")
@@ -264,7 +274,6 @@ async def get_knowledge_file(
         filename=os.path.basename(knowledge.file_path),
         media_type=mime_type
     )
-
 
 @router.get("/preview/{knowledge_id}")
 async def preview_knowledge_source(

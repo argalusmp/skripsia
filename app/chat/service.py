@@ -32,7 +32,6 @@ def generate_response(query: str, history: List[Tuple[str, str]] = None) -> str:
     
     When providing responses:
     - Keep your answers concise and focused on the user's question
-    - Cite specific information from the context where relevant by providing the page number. 
     - Format your response in a clear, readable way
     - Maintain a helpful and supportive tone
 

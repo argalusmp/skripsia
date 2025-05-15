@@ -18,7 +18,8 @@ app.add_middleware(
     allow_origins=[
         "https://skripsia-fe.vercel.app",
         "http://localhost:3000",
-        "http://143.198.214.90"
+        "http://143.198.214.90",
+        "https://vidimarpaung.tech"
     ],
     allow_credentials=True,
     allow_methods=["*"],

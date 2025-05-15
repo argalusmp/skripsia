@@ -213,7 +213,6 @@ async def get_knowledge_file(
     knowledge_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    background_tasks: BackgroundTasks = Depends()  # Add this parameter
 ):
     # Query the knowledge source
     knowledge = db.query(KnowledgeSource).filter(
@@ -239,14 +238,22 @@ async def get_knowledge_file(
                 if not mime_type:
                     mime_type = "application/octet-stream"
                 
-                # Add cleanup task to background tasks
-                background_tasks.add_task(lambda: os.unlink(temp_file_path) if os.path.exists(temp_file_path) else None)
-                
+                # Definisikan cleanup function
+                def cleanup_temp_file():
+                    try:
+                        if os.path.exists(temp_file_path):
+                            os.unlink(temp_file_path)
+                            logging.info(f"Temporary file {temp_file_path} has been deleted")
+                    except Exception as e:
+                        logging.error(f"Error deleting temp file: {e}")
+
+
                 # Serve file directly through the backend
                 return FileResponse(
                     path=temp_file_path,
                     filename=os.path.basename(knowledge.file_path),
-                    media_type=mime_type
+                    media_type=mime_type,
+                    background=BackgroundTasks(cleanup_temp_file)
                 )
             else:
                 raise HTTPException(status_code=500, detail="Failed to download file from storage")

@@ -14,6 +14,7 @@ from app.users.models import User
 from app.config import settings
 from app.storage.spaces_storage import SpacesStorage  # Import SpacesStorage
 import mimetypes
+import tempfile
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
@@ -77,25 +78,35 @@ async def upload_knowledge_source(
     db.refresh(db_knowledge)
 
     # If USE_SPACES is enabled, upload to DigitalOcean Spaces
+    # If USE_SPACES is enabled, upload to DigitalOcean Spaces
     file_url = local_file_path
-    object_name = None
     if settings.USE_SPACES:
         try:
             spaces = SpacesStorage()
+            # PERBAIKAN: Hapus "skripsia-uploads/" dari object_name karena sudah ada di bucket name
             object_name = f"knowledge/{db_knowledge.id}/{title}{file_extension}"
-            file_url = spaces.upload_file(local_file_path, object_name)
             
-            # Update database with the object name rather than local path
-            db_knowledge.file_path = object_name
-            db.commit()
-            db.refresh(db_knowledge)
+            # Logging akan membantu debugging
+            logging.info(f"Uploading to Spaces with object_name: {object_name}")
             
-            # We can now remove the local file
-            os.remove(local_file_path)
+            # Upload file
+            space_object_name = spaces.upload_file(local_file_path, object_name)
+            
+            if space_object_name:
+                # Update database with the object path
+                db_knowledge.file_path = space_object_name
+                db.commit()
+                db.refresh(db_knowledge)
+                
+                # We can now remove the local file
+                os.remove(local_file_path)
+                logging.info(f"File uploaded to Spaces and local file removed. Path in DB: {db_knowledge.file_path}")
+            else:
+                logging.error("Failed to upload file to Spaces")
         except Exception as e:
             logging.error(f"Error uploading to Spaces: {e}")
             # If Spaces upload fails, continue with local file
-
+            
     # Process knowledge source in background
     background_tasks.add_task(
         process_knowledge_source,
@@ -199,7 +210,6 @@ async def delete_knowledge_source(
 async def get_knowledge_file(
     request: Request,
     knowledge_id: int,
-    # Menggunakan get_current_user bukan admin
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -210,20 +220,36 @@ async def get_knowledge_file(
         raise HTTPException(
             status_code=404, detail="Knowledge source not found")
 
-    # If using Spaces, generate a presigned URL and redirect to it
+    # If using Spaces, download the file and serve it directly instead of redirecting
     if settings.USE_SPACES and not knowledge.file_path.startswith(settings.UPLOAD_DIR):
         try:
+            # Create temporary file
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.basename(knowledge.file_path))
+            temp_file_path = temp_file.name
+            temp_file.close()
+            
+            # Download from Spaces
             spaces = SpacesStorage()
-            presigned_url = spaces.get_presigned_url(knowledge.file_path)
-            if presigned_url:
-                return RedirectResponse(url=presigned_url)
+            if spaces.download_file(knowledge.file_path, temp_file_path):
+                # Get file MIME type
+                mime_type, _ = mimetypes.guess_type(knowledge.file_path)
+                if not mime_type:
+                    mime_type = "application/octet-stream"
+                
+                # Serve file directly through the backend
+                return FileResponse(
+                    path=temp_file_path,
+                    filename=os.path.basename(knowledge.file_path),
+                    media_type=mime_type,
+                    background=BackgroundTasks(lambda: os.unlink(temp_file_path) if os.path.exists(temp_file_path) else None)
+                )
             else:
-                raise HTTPException(status_code=500, detail="Failed to generate file access URL")
+                raise HTTPException(status_code=500, detail="Failed to download file from storage")
         except Exception as e:
             logging.error(f"Error accessing file from Spaces: {e}")
             raise HTTPException(status_code=500, detail=f"Error accessing file: {str(e)}")
     
-    # Fallback to local file access if not using Spaces or if path is local
+    # Fallback to local file access
     if not os.path.exists(knowledge.file_path):
         raise HTTPException(status_code=404, detail="File not found on server")
 
@@ -256,18 +282,9 @@ async def preview_knowledge_source(
     file_type = knowledge.file_type
     file_name = os.path.basename(file_path)
 
-    # For Spaces storage, we'll use a presigned URL
+    # ALWAYS use backend-proxied URL for both local and Spaces files
     file_url = f"/knowledge/file/{knowledge.id}"
-    if settings.USE_SPACES and not file_path.startswith(settings.UPLOAD_DIR):
-        try:
-            spaces = SpacesStorage()
-            presigned_url = spaces.get_presigned_url(file_path)
-            if presigned_url:
-                file_url = presigned_url
-        except Exception as e:
-            logging.error(f"Error generating preview URL: {e}")
 
-    # Generate signed URL or token for frontend to access
     preview_data = {
         "id": knowledge.id,
         "title": knowledge.title,

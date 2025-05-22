@@ -34,6 +34,7 @@ def generate_response(query: str, history: List[Tuple[str, str]] = None) -> str:
     - Keep your answers concise and focused on the user's question
     - Format your response in a clear, readable way
     - Maintain a helpful and supportive tone
+    - If you give documentation or references, also provide a brief summary of the content
 
     Chat History:
     {chat_history}

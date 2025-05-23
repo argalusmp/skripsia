@@ -224,7 +224,7 @@ async def delete_knowledge_source(
 
 
 @router.get("/file/{knowledge_id}", response_class=Response)
-@limiter.limit("10/minute")
+@limiter.limit("5/minute")
 async def get_knowledge_file(
     request: Request,
     knowledge_id: int,

@@ -5,7 +5,6 @@ from app.auth.router import router as auth_router
 from app.users.router import router as users_router
 from app.knowledge.router import router as knowledge_router
 from app.chat.router import router as chat_router
-from app.middleware.middleware import RoleMiddleware
 app = FastAPI(
     title="Skripsi Chatbot API",
     description="Backend API for RAG-based Skripsi Information Chatbot",
@@ -26,7 +25,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.add_middleware(RoleMiddleware)
 
 # Include routers
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])

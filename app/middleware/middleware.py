@@ -2,6 +2,7 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
+# Unused Middleware -> ini tidak digunakan lagi karena sudah menggunakan middleware dependensi FastAPI yang lebih baik
 class RoleMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Ambil role pengguna dari header

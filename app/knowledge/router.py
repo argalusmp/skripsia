@@ -57,6 +57,20 @@ async def upload_knowledge_source(
             detail="Unsupported file type. Supported types: PDF, DOCX, JPG, PNG, MP3, WAV, M4A."
         )
 
+    # Get file size (in bytes)
+    file.file.seek(0, 2)  # Move to end of file
+    file_size = file.file.tell()  # Get current position
+    file.file.seek(0)  # Reset to beginning of file
+
+    max_size_mb = 30 
+    max_size_bytes = max_size_mb * 1024 * 1024
+
+    if file_size > max_size_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File size exceeds the limit of {max_size_mb} MB"
+        )
+
     # Create directory if it doesn't exist
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 

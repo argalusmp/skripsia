@@ -1,1 +1,182 @@
-Generic single-database configuration.
+# Skripsi Chatbot Backend
+
+## Project Overview
+This project is a backend application for a chatbot system designed to assist users with information related to thesis (skripsi) guidelines and processes. It is built using **FastAPI** and incorporates modern technologies like **Pinecone**, **LangChain**, **Mistral AI**, and **Groq** for advanced features such as vector search, text extraction, and audio transcription.
+
+---
+
+## Key Features
+
+### 1. Authentication and Authorization
+- **JWT-based Authentication**: Secure token-based authentication system with role-based access control
+- **User Management**: Registration, login, and profile management functionality
+- **Role-based Access Control**: Separate permissions for admin and student roles
+
+### 2. Knowledge Base Management
+- **Multi-format Support**: Process documents (PDF, DOCX), images (JPG, PNG), and audio files (MP3, WAV, M4A)
+- **Intelligent Text Extraction**: 
+  - OCR for documents and images using Mistral AI
+  - Audio transcription using Groq's Whisper model
+- **Vector Database Integration**: Store and retrieve knowledge chunks using Pinecone vector database
+
+### 3. Chatbot Functionality
+- **RAG Implementation**: Retrieval-Augmented Generation using LangChain and Groq's LLama 3.3
+- **Context-aware Conversations**: Maintain conversation history for better responses
+- **Conversation Management**: Save, retrieve, and delete conversations
+
+### 4. Advanced Infrastructure
+- **Cloud Storage**: DigitalOcean Spaces integration for file storage
+- **Database Management**: PostgreSQL with SQLAlchemy ORM and Alembic migrations
+- **Rate Limiting**: Prevent API abuse with SlowAPI implementation
+- **Deployment Pipeline**: GitHub Actions workflow for automated deployment
+
+---
+
+## Technical Architecture
+
+### Backend Framework
+- **FastAPI**: High-performance web framework for building APIs
+- **Pydantic**: Data validation and settings management
+- **Starlette**: ASGI framework providing middleware support
+
+### Database
+- **PostgreSQL**: Primary database for structured data
+- **SQLAlchemy**: ORM for database interactions
+- **Alembic**: Database migration tool
+
+### AI and Vector Search
+- **Pinecone**: Vector database for storing embeddings
+- **LangChain**: Framework for building RAG pipelines
+- **OpenAI Embeddings**: Text embedding model for vector representation
+- **Groq**: LLM provider for text generation and audio transcription
+- **Mistral AI**: OCR for text extraction from documents and images
+
+### Storage
+- **Local Storage**: Option for local file storage
+- **DigitalOcean Spaces**: S3-compatible object storage for production
+
+### Security
+- **JWT Authentication**: JSON Web Tokens for stateless authentication
+- **Bcrypt**: Password hashing algorithm
+- **OAuth2**: Implementation for secure token-based authentication
+- **Rate Limiting**: Endpoint protection against abuse
+
+---
+
+## Project Structure
+
+```
+.
+├── alembic/                # Database migration scripts
+├── app/                    # Main application code
+│   ├── auth/               # Authentication and authorization
+│   ├── chat/               # Chatbot functionality
+│   ├── knowledge/          # Knowledge base management
+│   ├── middleware/         # Custom middleware
+│   ├── storage/            # File storage management
+│   ├── users/              # User management
+│   ├── vector_store/       # Vector database integration
+│   ├── config.py           # Application configuration
+│   ├── database.py         # Database connection setup
+│   └── main.py             # FastAPI application entry point
+├── uploads/                # Directory for uploaded files
+├── .env                    # Environment variables (not in repo)
+├── .github/workflows/      # CI/CD pipelines
+├── requirements.txt        # Python dependencies
+├── create_admin_user.py    # Utility for creating admin user
+└── alembic.ini             # Alembic configuration
+```
+
+---
+
+## API Documentation
+
+### Authentication
+| Endpoint | Method | Description | Access |
+|----------|--------|-------------|--------|
+| `/auth/token` | POST | Login and obtain access token | Public |
+| `/auth/register` | POST | Register a new user | Public |
+
+### User Management
+| Endpoint | Method | Description | Access |
+|----------|--------|-------------|--------|
+| `/users/me` | GET | Get current user profile | Authenticated |
+| `/users/me` | PUT | Update current user profile | Authenticated |
+| `/users/` | GET | List all users | Admin |
+
+### Knowledge Base
+| Endpoint | Method | Description | Access |
+|----------|--------|-------------|--------|
+| `/knowledge/upload` | POST | Upload knowledge source | Admin |
+| `/knowledge/` | GET | List all knowledge sources | Authenticated |
+| `/knowledge/{id}` | GET | Get specific knowledge source | Authenticated |
+| `/knowledge/{id}` | DELETE | Delete knowledge source | Admin |
+| `/knowledge/file/{id}` | GET | Download knowledge file | Authenticated |
+| `/knowledge/preview/{id}` | GET | Preview knowledge source | Authenticated |
+
+### Chat
+| Endpoint | Method | Description | Access |
+|----------|--------|-------------|--------|
+| `/chat/send` | POST | Send message to chatbot | Authenticated |
+| `/chat/conversations` | GET | List user conversations | Authenticated |
+| `/chat/conversations/{id}` | GET | Get specific conversation | Authenticated |
+| `/chat/conversations/{id}` | DELETE | Delete conversation | Authenticated |
+
+---
+
+## Setup and Installation
+
+### Prerequisites
+- Python 3.9+
+- PostgreSQL
+- API keys for OpenAI, Mistral AI, Groq, and Pinecone
+- (Optional) DigitalOcean Spaces account
+
+### Local Development Setup
+
+1. **Clone the Repository**
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/skripsi-chatbot-backend.git
+cd skripsi-chatbot-backend
+```
+
+2. **Create Virtual Environment**
+```bash
+# Create and activate virtual environment
+python -m venv venv
+source venv/bin/activate
+```
+
+3. **Install Dependencies**
+```bash
+# Install dependencies
+pip install -r requirements.txt
+```
+
+4. **Set Up Environment Variables**
+Create a `.env` file in the root directory with the required variables. You can use the provided `.env.example` as a reference.
+
+5. **Initialize Database**
+```bash
+# Run database migrations
+alembic upgrade head
+```
+
+6. **Run Development Server**
+```bash
+# Start the development server
+uvicorn app.main:app --reload
+```
+
+7. **Access the API Documentation**
+Open your browser and navigate to:
+```
+http://localhost:8000/docs
+```
+
+---
+
+## License
+
+This project is licensed under the MIT License.

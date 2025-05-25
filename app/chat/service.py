@@ -8,13 +8,10 @@ from app.vector_store.pinecone_client import retrieve_relevant_chunks
 def generate_response(query: str, history: List[Tuple[str, str]] = None) -> str:
     """Generate a response using RAG with conversation history"""
     
-    # Initialize LLM
     llm = ChatGroq(model="llama-3.3-70b-versatile")
     
-    # Retrieve relevant context
     context = retrieve_relevant_chunks(query)
     
-    # Build conversation history string
     chat_history = ""
     if history:
         for i, (role, content) in enumerate(history):
@@ -23,8 +20,7 @@ def generate_response(query: str, history: List[Tuple[str, str]] = None) -> str:
                 continue
             prefix = "User: " if role == "user" else "Assistant: "
             chat_history += f"{prefix}{content}\n\n"
-    
-    # Define RAG prompt
+
     template = """
     You are a helpful assistant specializing in providing information about skripsi (thesis) guidelines and processes.
     
@@ -46,11 +42,9 @@ def generate_response(query: str, history: List[Tuple[str, str]] = None) -> str:
     
     Assistant:
     """
-    
-    # Build prompt
+
     prompt = ChatPromptTemplate.from_template(template)
-    
-    # Create RAG chain
+
     rag_chain = (
         {
             "context": lambda x: context,
@@ -62,7 +56,6 @@ def generate_response(query: str, history: List[Tuple[str, str]] = None) -> str:
         | StrOutputParser()
     )
     
-    # Generate response
     response = rag_chain.invoke(query)
     
     return response

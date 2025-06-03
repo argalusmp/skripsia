@@ -8,7 +8,7 @@ from app.vector_store.pinecone_client import retrieve_relevant_chunks, format_co
 def generate_response(query: str, history: List[Tuple[str, str]] = None) -> str:
     """Generate a response using RAG with conversation history and show sources"""
     
-    llm = ChatGroq(model="llama-3.3-70b-versatile")
+    llm = ChatGroq(model="llama-3.1-8b-instant")
     
     context_chunks = retrieve_relevant_chunks(query)
     context, sources = format_context_with_sources(context_chunks)

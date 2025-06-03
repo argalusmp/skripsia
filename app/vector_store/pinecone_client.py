@@ -36,6 +36,6 @@ def format_context_with_sources(chunks: list) -> tuple:
     context = ""
     sources = set()
     for i, chunk in enumerate(chunks):
-        context += f"Document {i+1} (source: {chunk['source']}):\n{chunk['content']}\n\n"
+        context += f"(source: {chunk['source']}):\n{chunk['content']}\n\n"
         sources.add(chunk['source'])
     return context, sources

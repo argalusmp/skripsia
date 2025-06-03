@@ -3,14 +3,15 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_groq import ChatGroq
-from app.vector_store.pinecone_client import retrieve_relevant_chunks
+from app.vector_store.pinecone_client import retrieve_relevant_chunks, format_context_with_sources
 
 def generate_response(query: str, history: List[Tuple[str, str]] = None) -> str:
-    """Generate a response using RAG with conversation history"""
+    """Generate a response using RAG with conversation history and show sources"""
     
     llm = ChatGroq(model="llama-3.3-70b-versatile")
     
-    context = retrieve_relevant_chunks(query)
+    context_chunks = retrieve_relevant_chunks(query)
+    context, sources = format_context_with_sources(context_chunks)
     
     chat_history = ""
     if history:
@@ -41,6 +42,8 @@ def generate_response(query: str, history: List[Tuple[str, str]] = None) -> str:
     User Question: {question}
     
     Assistant:
+    
+    Sources used: {sources}
     """
 
     prompt = ChatPromptTemplate.from_template(template)
@@ -49,7 +52,8 @@ def generate_response(query: str, history: List[Tuple[str, str]] = None) -> str:
         {
             "context": lambda x: context,
             "question": lambda x: x,
-            "chat_history": lambda _: chat_history
+            "chat_history": lambda _: chat_history,
+            "sources": lambda _: ", ".join(sources)
         }
         | prompt
         | llm

@@ -19,14 +19,23 @@ def store_chunks_in_pinecone(texts: List[str], metadatas: List[Dict[str, Any]], 
     vector_store.add_texts(texts=texts, metadatas=metadatas, ids=ids)
     return True
 
-def retrieve_relevant_chunks(query: str, k: int = 5) -> str:
-    """Retrieve relevant chunks from vector store based on query"""
+def retrieve_relevant_chunks(query: str, k: int = 5) -> list:
+    """Retrieve relevant chunks from vector store based on query, including source metadata"""
     vector_store = get_vector_store()
     docs = vector_store.similarity_search(query, k=k)
-    
-    # Format retrieved documents into a single context string
+    results = []
+    for doc in docs:
+        results.append({
+            "content": doc.page_content,
+            "source": doc.metadata.get("source", "unknown")
+        })
+    return results
+
+def format_context_with_sources(chunks: list) -> tuple:
+    """Gabungkan context dan kumpulkan sumber unik"""
     context = ""
-    for i, doc in enumerate(docs):
-        context += f"Document {i+1}:\n{doc.page_content}\n\n"
-    
-    return context
+    sources = set()
+    for i, chunk in enumerate(chunks):
+        context += f"Document {i+1} (source: {chunk['source']}):\n{chunk['content']}\n\n"
+        sources.add(chunk['source'])
+    return context, sources

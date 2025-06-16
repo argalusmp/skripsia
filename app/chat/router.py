@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 
 from app.auth.dependencies import get_current_user
@@ -20,6 +20,9 @@ async def send_message(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    # Get current UTC time
+    current_utc = datetime.now(timezone.utc)
+    
     # Check if conversation exists or create a new one
     if chat_request.conversation_id:
         conversation = db.query(Conversation).filter(
@@ -32,7 +35,12 @@ async def send_message(
     else:
         # Create new conversation with default title (first message content)
         title_preview = chat_request.message[:30] + "..." if len(chat_request.message) > 30 else chat_request.message
-        conversation = Conversation(user_id=current_user.id, title=title_preview)
+        conversation = Conversation(
+            user_id=current_user.id, 
+            title=title_preview,
+            created_at=current_utc,
+            updated_at=current_utc
+        )
         db.add(conversation)
         db.commit()
         db.refresh(conversation)
@@ -41,7 +49,8 @@ async def send_message(
     user_message = Message(
         conversation_id=conversation.id,
         role="user",
-        content=chat_request.message
+        content=chat_request.message,
+        created_at=current_utc
     )
     db.add(user_message)
     db.commit()
@@ -59,12 +68,13 @@ async def send_message(
     assistant_message = Message(
         conversation_id=conversation.id,
         role="assistant",
-        content=response_text
+        content=response_text,
+        created_at=current_utc
     )
     db.add(assistant_message)
     
     # Update conversation's updated_at timestamp
-    conversation.updated_at = datetime.utcnow()
+    conversation.updated_at = current_utc
     db.commit()
     db.refresh(assistant_message)
     

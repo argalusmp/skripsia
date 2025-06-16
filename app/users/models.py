@@ -1,7 +1,7 @@
-from sqlalchemy import Column, Integer, String, DateTime, func
+from sqlalchemy import Column, Integer, String, DateTime
 from pydantic import BaseModel, EmailStr
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.database import Base
 
@@ -14,8 +14,8 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     password_hash = Column(String)
     role = Column(String)  # 'admin' or 'student'
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime, nullable=True)  # Remove default, set manually
+    updated_at = Column(DateTime, nullable=True)  # Remove default, set manually
 
 # Pydantic Models
 class UserBase(BaseModel):

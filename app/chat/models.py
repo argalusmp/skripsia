@@ -1,8 +1,8 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, func
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from pydantic import BaseModel
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.database import Base
 
@@ -13,8 +13,8 @@ class Conversation(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     title = Column(String, nullable=True)
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime, nullable=True)  # Remove default, set manually
+    updated_at = Column(DateTime, nullable=True)  # Remove default, set manually
     
     user = relationship("User")
     messages = relationship("Message", back_populates="conversation")
@@ -26,7 +26,7 @@ class Message(Base):
     conversation_id = Column(Integer, ForeignKey("conversations.id"))
     role = Column(String)  # 'user' or 'assistant'
     content = Column(Text)
-    created_at = Column(DateTime, default=func.now())
+    created_at = Column(DateTime, nullable=True)  # Remove default, set manually
     
     conversation = relationship("Conversation", back_populates="messages")
 

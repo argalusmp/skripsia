@@ -21,6 +21,7 @@ from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
 from fastapi import FastAPI
 from fastapi import Request
+from datetime import datetime, timezone
 
 app = FastAPI()
 router = APIRouter()
@@ -80,12 +81,16 @@ async def upload_knowledge_source(
     with open(local_file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
+    # Get current UTC time
+    current_utc = datetime.now(timezone.utc)
+    
     # Create database entry
     db_knowledge = KnowledgeSource(
         title=title,
         file_path=local_file_path,
         file_type=file_type,
-        uploaded_by=current_user.id
+        uploaded_by=current_user.id,
+        created_at=current_utc
     )
 
     db.add(db_knowledge)

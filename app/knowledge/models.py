@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from pydantic import BaseModel, field_validator
 from typing import Optional, List
@@ -16,10 +16,9 @@ class KnowledgeSource(Base):
     title = Column(String, index=True)
     file_path = Column(String)
     file_type = Column(String)  # 'pdf', 'doc', 'image', 'audio'
-    # 'processing', 'completed', 'failed'
-    status = Column(String, default="processing")
+    status = Column(String, default="processing")  # 'processing', 'completed', 'failed'
     uploaded_by = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=func.now())
+    created_at = Column(DateTime, nullable=True)  # Remove default, set manually
 
     user = relationship("User")
 

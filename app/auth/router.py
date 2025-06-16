@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from datetime import timedelta
+from datetime import timedelta, datetime, timezone
 
 from app.auth.models import UserLogin, Token, UserCreate
 from app.auth.utils import authenticate_user, create_access_token, get_password_hash
@@ -54,13 +54,18 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
             detail="Email already registered"
         )
     
+    # Get current UTC time
+    current_utc = datetime.now(timezone.utc)
+    
     # Create new user with default role if not provided
     hashed_password = get_password_hash(user_data.password)
     db_user = User(
         username=user_data.username,
         email=user_data.email,
         password_hash=hashed_password,
-        role=user_data.role or "student"  # Default to "student" if not provided
+        role=user_data.role or "student",  # Default to "student" if not provided
+        created_at=current_utc,
+        updated_at=current_utc
     )
     db.add(db_user)
     db.commit()

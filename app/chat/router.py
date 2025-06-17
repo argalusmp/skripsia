@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
-from datetime import datetime, timezone
 from typing import List
 
 from app.auth.dependencies import get_current_user
@@ -11,6 +10,7 @@ from app.chat.models import (
 from app.chat.service import generate_response
 from app.database import get_db
 from app.users.models import User
+from app.utils.timezone import get_utc_now  # Import utility function
 
 router = APIRouter()
 
@@ -20,8 +20,8 @@ async def send_message(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # Get current UTC time
-    current_utc = datetime.now(timezone.utc)
+    # Use utility function for consistent UTC time
+    current_utc = get_utc_now()
     
     # Check if conversation exists or create a new one
     if chat_request.conversation_id:
@@ -64,12 +64,12 @@ async def send_message(
     history = [(msg.role, msg.content) for msg in conversation_messages]
     response_text = generate_response(chat_request.message, history)
     
-    # Save assistant message
+    # Save assistant message with same timestamp
     assistant_message = Message(
         conversation_id=conversation.id,
         role="assistant",
         content=response_text,
-        created_at=current_utc
+        created_at=current_utc  # Use same timestamp
     )
     db.add(assistant_message)
     

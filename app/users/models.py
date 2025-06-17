@@ -14,8 +14,8 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     password_hash = Column(String)
     role = Column(String)  # 'admin' or 'student'
-    created_at = Column(DateTime, nullable=True)  # Remove default, set manually
-    updated_at = Column(DateTime, nullable=True)  # Remove default, set manually
+    created_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, nullable=True)
 
 # Pydantic Models
 class UserBase(BaseModel):
@@ -29,6 +29,10 @@ class UserResponse(UserBase):
 
     class Config:
         from_attributes = True
+        # Add timezone awareness
+        json_encoders = {
+            datetime: lambda v: v.replace(tzinfo=timezone.utc).isoformat() if v.tzinfo is None else v.isoformat()
+        }
 
 class UserProfileUpdate(BaseModel):
     email: Optional[EmailStr] = None

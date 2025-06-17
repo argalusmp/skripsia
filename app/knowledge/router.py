@@ -46,7 +46,7 @@ async def upload_knowledge_source(
     file_extension = os.path.splitext(file.filename)[1].lower()
     logging.info(f"File extension: {file_extension}")
 
-    if file_extension in ['.pdf', '.docx', '.doc']:
+    if file_extension in ['.pdf', '.docx', '.doc', '.txt']:
         file_type = 'document'
     elif file_extension in ['.jpg', '.jpeg', '.png']:
         file_type = 'image'
@@ -55,7 +55,7 @@ async def upload_knowledge_source(
     else:
         raise HTTPException(
             status_code=400,
-            detail="Unsupported file type. Supported types: PDF, DOCX, JPG, PNG, MP3, WAV, M4A."
+            detail="Unsupported file type. Supported types: PDF, DOCX, TXT, JPG/JPEG, PNG, MP3, WAV, M4A."
         )
 
     # Get file size (in bytes)

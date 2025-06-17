@@ -158,3 +158,12 @@ def extract_text_from_audio(file_path: str) -> str:
     except Exception as e:
         logger.error(f"Error extracting text from audio: {str(e)}")
         raise
+
+def extract_text_from_txt(file_path: str) -> str:
+    """Extract text from .txt files."""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            return file.read()
+    except Exception as e:
+        logger.error(f"Error extracting text from .txt file: {e}")
+        raise

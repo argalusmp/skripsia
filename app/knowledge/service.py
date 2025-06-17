@@ -4,7 +4,7 @@ import os
 import tempfile
 from app.database import SessionLocal
 from app.knowledge.models import KnowledgeSource
-from app.knowledge.processor import extract_text_from_document, extract_text_from_image, extract_text_from_audio
+from app.knowledge.processor import extract_text_from_document, extract_text_from_image, extract_text_from_audio, extract_text_from_txt
 from app.vector_store.pinecone_client import store_chunks_in_pinecone
 from app.config import settings
 from app.storage.spaces_storage import SpacesStorage  # Import SpacesStorage
@@ -40,7 +40,10 @@ def process_knowledge_source(source_id: int, file_path: str, file_type: str):
         # Extract text based on file type
         text = ""
         if file_type == "document":
-            text = extract_text_from_document(local_file_path)
+            if local_file_path.endswith('.txt'):
+                text = extract_text_from_txt(local_file_path)
+            else:
+                text = extract_text_from_document(local_file_path)
         elif file_type == "image":
             text = extract_text_from_image(local_file_path)
         elif file_type == "audio":
